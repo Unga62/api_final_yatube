@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 
-from api.const import TEXT_SLICE
+from api.constants import TEXT_SLICE
 
 User = get_user_model()
 

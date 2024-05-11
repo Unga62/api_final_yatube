@@ -3,8 +3,8 @@ from rest_framework import filters, mixins, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import LimitOffsetPagination
 
-from api.const import DELETE_TEXT, EDIT_TEXT, POST_ID
-from api.permissions import BaseIsAuthorOrReadOnly
+from api.constants import DELETE_TEXT, NOT_EDIT_TEXT
+from api.permissions import IsAuthorOrReadOnly
 from api.serializers import (
     CommentSerializer,
     FollowSerializer,
@@ -22,16 +22,11 @@ class ListCreateViewSet(mixins.ListModelMixin, mixins.CreateModelMixin,
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
-    permission_classes = (BaseIsAuthorOrReadOnly,)
+    permission_classes = (IsAuthorOrReadOnly,)
     pagination_class = LimitOffsetPagination
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
-
-    def perform_update(self, serializer):
-        if serializer.instance.author != self.request.user:
-            raise PermissionDenied(EDIT_TEXT)
-        super(PostViewSet, self).perform_update(serializer)
 
     def perform_destroy(self, instance):
         if instance.author != self.request.user:
@@ -42,25 +37,25 @@ class PostViewSet(viewsets.ModelViewSet):
 class GroupViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
-    permission_classes = (BaseIsAuthorOrReadOnly,)
+    permission_classes = (IsAuthorOrReadOnly,)
 
 
 class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
-    permission_classes = (BaseIsAuthorOrReadOnly,)
+    permission_classes = (IsAuthorOrReadOnly,)
 
-    def post_object(self):
-        return get_object_or_404(Post, pk=self.kwargs.get(POST_ID))
+    def get_post(self):
+        return get_object_or_404(Post, pk=self.kwargs.get('post_id'))
 
     def get_queryset(self):
-        return self.post_object().comments.all()
+        return self.get_post().comments.all()
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user, post=self.post_object())
+        serializer.save(author=self.request.user, post=self.get_post())
 
     def perform_update(self, serializer):
         if serializer.instance.author != self.request.user:
-            raise PermissionDenied(EDIT_TEXT)
+            raise PermissionDenied(NOT_EDIT_TEXT)
         super(CommentViewSet, self).perform_update(serializer)
 
     def perform_destroy(self, instance):
@@ -78,5 +73,4 @@ class FollowViewSet(ListCreateViewSet):
         serializer.save(user=self.request.user)
 
     def get_queryset(self):
-        user = get_object_or_404(User, username=self.request.user.username)
-        return user.follower
+        return self.request.user.follower.all()
